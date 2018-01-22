@@ -1,0 +1,161 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "API CF",
+    "Parameters": {
+        "KeyPair": {
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Description": "An Amazon EC2 key pair name."
+        },
+        "VpcStack": {
+            "Description": "VPC Cloudformation Stack",
+            "Type": "String",
+            "Default": "WinfVPC"
+        }
+    },
+    "Resources": {
+        "WinFrontierApplication": {
+            "Type": "AWS::ElasticBeanstalk::Application",
+            "Properties": {
+                "Description": "AWS Elastic Beanstalk WinFrontier Application"
+            }
+        },
+        "WinFrontierApplicationVersion": {
+            "Type": "AWS::ElasticBeanstalk::ApplicationVersion",
+            "Properties": {
+                "ApplicationName": {
+                    "Ref": "WinFrontierApplication"
+                },
+                "Description": "AWS ElasticBeanstalk WinFrontier Application Version",
+                "SourceBundle": {
+                    "S3Bucket": {
+                    # @here add bucket name here
+                        "Fn::Sub": "elasticbeanstalk-samples-${AWS::Region}"
+                    },
+                    # @here change zip name here
+                    "S3Key": "php-sample.zip"
+                }
+            }
+        },
+        "WinFrontierConfigurationTemplate": {
+            "Type": "AWS::ElasticBeanstalk::ConfigurationTemplate",
+            "Properties": {
+                "ApplicationName": {
+                    "Ref": "WinFrontierApplication"
+                },
+                "Description": "AWS ElasticBeanstalk WinFrontier Configuration Template",
+                "OptionSettings": [
+                    {
+                        "Namespace": "aws:ec2:vpc",
+                        "OptionName": "VPCId",
+                        "Value": {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${VpcStack}-VPC"
+                            }
+                        }
+                    },
+                    {
+                        "Namespace": "aws:ec2:vpc",
+                        "OptionName": "Subnets",
+                        "Value": {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${VpcStack}-ProtectSubnetID1"
+                            }
+                        }
+                    },
+                    {
+                        "Namespace": "aws:ec2:vpc",
+                        "OptionName": "ELBSubnets",
+                        "Value": {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${VpcStack}-PublicSubnetID1"
+                            }
+                        }
+                    },
+                    {
+                        "Namespace": "aws:elasticbeanstalk:cloudwatch:logs",
+                        "OptionName": "StreamLogs",
+                        "Value": true
+                    },
+                    {
+                        "Namespace": "aws:autoscaling:asg",
+                        "OptionName": "MinSize",
+                        "Value": "2"
+                    },
+                    {
+                        "Namespace": "aws:autoscaling:asg",
+                        "OptionName": "MaxSize",
+                        "Value": "6"
+                    },
+                    {
+                        "Namespace": "aws:elasticbeanstalk:environment",
+                        "OptionName": "EnvironmentType",
+                        "Value": "LoadBalanced"
+                    }
+                ],
+                #@here change PHP version
+                "SolutionStackName": "64bit Amazon Linux running PHP 5.6"
+            }
+        },
+        "WinFrontierEnvironment": {
+            "Type": "AWS::ElasticBeanstalk::Environment",
+            "Properties": {
+                "ApplicationName": {
+                    "Ref": "WinFrontierApplication"
+                },
+                "Description": "AWS ElasticBeanstalk WinFrontier Environment",
+                "TemplateName": {
+                    "Ref": "WinFrontierConfigurationTemplate"
+                },
+                "VersionLabel": {
+                    "Ref": "WinFrontierApplicationVersion"
+                }
+            }
+        }
+    },
+    "Outputs": {
+        "WinFrontierApplicationID": {
+            "Description": "ApplicationID",
+            "Value": {
+                "Ref": "WinFrontierApplication"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-ApplicationID"
+                }
+            }
+        },
+        "WinFrontierApplicationVersionD": {
+            "Description": "ApplicationVersionID",
+            "Value": {
+                "Ref": "WinFrontierApplicationVersion"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-ApplicationVersionID"
+                }
+            }
+        },
+        "WinFrontierConfigurationTemplateID": {
+            "Description": "ConfigurationTemplateID",
+            "Value": {
+                "Ref": "WinFrontierConfigurationTemplate"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-ConfigurationTemplateID"
+                }
+            }
+        },
+        "WinFrontierEnvironmentID": {
+            "Description": "EnvironmentID",
+            "Value": {
+                "Ref": "WinFrontierEnvironment"
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-EnvironmentID"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,147 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create Bastion CF",
+    "Parameters": {
+        "VpcStack": {
+            "Description": "VPC Cloudformation Stack",
+            "Type": "String",
+            "Default": "Add VPC Stack Name Here"
+        },
+        "Ec2KeyName": {
+            "Description": "EC2 SSH KEY",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Default": "key"
+        },
+        "Ec2InstanceType": {
+            "Description": "EC2 InstanceType",
+            "Type": "String",
+            "Default": "t2.nano"
+        },
+        "Ec2ImageId": {
+            "Description": "EC2 ImageId(AMI)",
+            "Type": "String",
+            "Default": "ami-2a69be4c"
+        }
+    },
+    "Resources": {
+        "Ec2Role": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess"
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "d631938e-9023-4794-8cf0-d0026eb4348a"
+                }
+            }
+        },
+        "Ec2RolePolicies": {
+            "Type": "AWS::IAM::Policy",
+            "Properties": {
+                "PolicyName": "Ec2RolePolicies",
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "logs:PutLogEvents",
+                                "logs:CreateLogStream"
+                            ],
+                            "Resource": [
+                                "arn:aws:logs:*:*:log-group:*"
+                            ]
+                        }
+                    ]
+                },
+                "Roles": [
+                    {
+                        "Ref": "Ec2Role"
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "4457ac95-8940-4e3d-8229-24d19a1282fd"
+                }
+            }
+        },
+        "Ec2InstanceProfile": {
+            "Type": "AWS::IAM::InstanceProfile",
+            "Properties": {
+                "Path": "/",
+                "Roles": [
+                    {
+                        "Ref": "Ec2Role"
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "75688436-ddd3-4aad-8f07-161a5963e0a9"
+                }
+            }
+        },
+        "BastionEc2Instance": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "ImageId": {
+                    "Ref": "Ec2ImageId"
+                },
+                "InstanceType": {
+                    "Ref": "Ec2InstanceType"
+                },
+                "KeyName": {
+                    "Ref": "Ec2KeyName"
+                },
+                "NetworkInterfaces": [
+                    {
+                        "AssociatePublicIpAddress": "true",
+                        "DeviceIndex": "0",
+                        "SubnetId": {
+                            "Fn::ImportValue": {
+                                "Fn::Sub": "${VpcStack}-PublicSubnetID1"
+                            }
+                        }
+                    }
+                ],
+                "IamInstanceProfile": {
+                    "Ref": "Ec2InstanceProfile"
+                },
+                "UserData": {
+                    "Fn::Base64": "#!/bin/bash\nyum update -y\nyum install jq awslogs -y\nchkconfig awslogs on\nservice awslogs start\n"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Bastion-test"
+                    }
+                ]
+            },
+            "Metadata": {
+                "AWS::CloudFormation::Designer": {
+                    "id": "29ac0384-107e-4e23-94eb-a9e07aaa37ed"
+                }
+            }
+        }
+    }
+}
